@@ -17,7 +17,7 @@ const Register = () => {
 
   React.useEffect(() => {
     if (user) {
-      navigate('/dashboard');
+      navigate('/');
     }
   }, [user, navigate]);
 
@@ -49,7 +49,7 @@ const Register = () => {
     });
     
     if (success) {
-      navigate('/dashboard');
+      navigate('/');
     }
     
     setLoading(false);
