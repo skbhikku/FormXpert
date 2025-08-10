@@ -9,14 +9,13 @@ import {
   useSensor,
   useSensors,
   PointerSensor,
+  TouchSensor,
   KeyboardSensor,
   closestCenter,
 } from '@dnd-kit/core';
 import {
-  
   sortableKeyboardCoordinates,
   useSortable,
-  
 } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
@@ -87,11 +86,11 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ id, item }) => {
       style={style}
       {...attributes}
       {...listeners}
-      className="bg-blue-50 border border-blue-200 rounded-lg p-3 cursor-grab hover:cursor-grabbing hover:bg-blue-100 transition-colors select-none"
+      className="bg-blue-50 border border-blue-200 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:bg-blue-100 transition-colors select-none touch-manipulation"
     >
       <div className="flex items-center">
-        <GripVertical className="w-4 h-4 text-gray-400 mr-2" />
-        {item}
+        <GripVertical className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+        <span className="text-sm sm:text-base">{item}</span>
       </div>
     </div>
   );
@@ -108,7 +107,9 @@ const DroppableAvailableItems: React.FC<DroppableAvailableItemsProps> = ({ quest
     <div
       ref={setNodeRef}
       id={`available-${questionIndex}`}
-      className={`grid grid-cols-2 md:grid-cols-3 gap-3 min-h-16 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 ${isOver ? 'border-blue-500 bg-blue-50' : ''}`}
+      className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 min-h-16 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 transition-colors ${
+        isOver ? 'border-blue-500 bg-blue-50' : ''
+      }`}
     >
       {items.map(item => (
         <DraggableItem key={`${questionIndex}-${item}`} id={`${questionIndex}-${item}`} item={item} />
@@ -137,15 +138,17 @@ const DroppableCategory: React.FC<DroppableCategoryProps> = ({ questionIndex, ca
     <div
       ref={setNodeRef}
       id={droppableId}
-      className={`bg-gray-50 border-2 border-dashed rounded-lg p-4 min-h-24 ${isOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
+      className={`bg-gray-50 border-2 border-dashed rounded-lg p-4 min-h-24 transition-colors ${
+        isOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+      }`}
     >
-      <h5 className="font-medium text-gray-900 mb-3">{category.name}</h5>
+      <h5 className="font-medium text-gray-900 mb-3 text-sm sm:text-base">{category.name}</h5>
       <div className="space-y-2">
         {items.map(item => (
           <DraggableItem key={`${questionIndex}-${item}`} id={`${questionIndex}-${item}`} item={item} />
         ))}
         {items.length === 0 && (
-          <p className="text-gray-500 text-sm italic">Drop items here</p>
+          <p className="text-gray-500 text-sm italic text-center py-2">Drop items here</p>
         )}
       </div>
     </div>
@@ -173,6 +176,12 @@ const PublicForm: React.FC = () => {
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -355,9 +364,9 @@ const PublicForm: React.FC = () => {
 
   if (!form) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Form Not Found</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Form Not Found</h1>
           <p className="text-gray-600">This form is no longer available.</p>
         </div>
       </div>
@@ -366,9 +375,9 @@ const PublicForm: React.FC = () => {
 
   if (submitted && result) {
     return (
-      <div className="min-h-screen bg-gray-50 py-12">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
+      <div className="min-h-screen bg-gray-50 py-8 sm:py-12 px-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
               {form.mode === 'test' ? (
                 <Trophy className="w-8 h-8 text-green-600" />
@@ -377,16 +386,16 @@ const PublicForm: React.FC = () => {
               )}
             </div>
             
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">
               {form.mode === 'test' ? 'Test Complete!' : 'Thank You!'}
             </h1>
             
             {form.mode === 'test' && result.score !== undefined && (
               <div className="mb-6">
-                <div className="text-6xl font-bold text-blue-600 mb-2">
+                <div className="text-4xl sm:text-6xl font-bold text-blue-600 mb-2">
                   {result.percentage}%
                 </div>
-                <p className="text-lg text-gray-600">
+                <p className="text-base sm:text-lg text-gray-600">
                   You scored {result.score} out of {result.maxScore} points
                 </p>
               </div>
@@ -399,12 +408,12 @@ const PublicForm: React.FC = () => {
             {form.mode === 'test' && form.settings.showResults && Array.isArray(result.correctAnswers) && (
               <div className="mt-8 text-left">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Review</h3>
-                <div className="space-y-4">
+                <div className="space-y-4 max-h-96 overflow-y-auto">
                   {form.questions.map((question, index) => {
                     const correct = result.correctAnswers?.[index];
                     return (
                       <div key={index} className="bg-gray-50 rounded-lg p-4">
-                        <h4 className="font-medium text-gray-900 mb-2">{question.title}</h4>
+                        <h4 className="font-medium text-gray-900 mb-2 text-sm sm:text-base">{question.title}</h4>
                         <div className="text-sm text-gray-600">
                           {question.type === 'categorize' ? (
                             <div>
@@ -425,30 +434,31 @@ const PublicForm: React.FC = () => {
                               })}
                             </div>
                           ) : question.type === 'cloze' ? (
-                            <div>
+                            <div className="space-y-1">
                               {Array.isArray(correct) && correct.length > 0 ? (
                                 correct.map((blank: string, i: number) => (
-                                  <span key={i} className="inline-block mr-2">
-                                    Blank {i + 1}: <span className="font-semibold">{blank}</span>
-                                  </span>
+                                  <div key={i} className="text-sm">
+                                    <span className="font-semibold">Blank {i + 1}:</span>
+                                    <span className="ml-2">{blank}</span>
+                                  </div>
                                 ))
                               ) : (
                                 <span className="italic text-gray-400">No correct answers</span>
                               )}
                             </div>
                           ) : question.type === 'comprehension' ? (
-                            <div>
+                            <div className="space-y-2">
                               {(question.followUpQuestions || []).map((fq, fqIdx) => (
-                                <div key={fqIdx} className="mb-1">
-                                  <span className="font-semibold">Q{fqIdx + 1}:</span> {fq.question}<br />
-                                  <span className="ml-4">
-                                    Correct Answer: <span className="font-semibold">
-                                      {Array.isArray(correct) && correct[fqIdx] 
+                                <div key={fqIdx} className="text-sm">
+                                  <div className="font-semibold mb-1">Q{fqIdx + 1}: {fq.question}</div>
+                                  <div className="ml-4">
+                                    <span className="text-green-600 font-medium">
+                                      Correct Answer: {Array.isArray(correct) && correct[fqIdx] 
                                         ? correct[fqIdx] 
                                         : <span className="italic text-gray-400">No correct answer</span>
                                       }
                                     </span>
-                                  </span>
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -469,23 +479,22 @@ const PublicForm: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-8 sm:py-12 px-4">
+      <div className="max-w-4xl mx-auto">
         {/* Header */}
-       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 mb-8">
-  {form.headerImage && (
-    <div className="w-full h-60 overflow-hidden rounded-xl mb-6">
-      <img 
-        src={form.headerImage} 
-        alt="Form header" 
-        className="w-full h-full fit-cover"
-      />
-    </div>
-  )}
-
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8 mb-6 sm:mb-8">
+          {form.headerImage && (
+            <div className="w-full h-48 sm:h-60 overflow-hidden rounded-xl mb-6">
+              <img 
+                src={form.headerImage} 
+                alt="Form header" 
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
           
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-3xl font-bold text-gray-900">{form.title}</h1>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-0">{form.title}</h1>
             <div className="flex items-center space-x-2">
               <span className={`px-3 py-1 text-sm font-medium rounded-full ${
                 form.mode === 'test' 
@@ -498,14 +507,14 @@ const PublicForm: React.FC = () => {
           </div>
           
           {form.description && (
-            <p className="text-gray-600 text-lg leading-relaxed">{form.description}</p>
+            <p className="text-gray-600 text-base sm:text-lg leading-relaxed">{form.description}</p>
           )}
           
           {form.mode === 'test' && (
             <div className="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
               <div className="flex items-center">
-                <Clock className="w-5 h-5 text-yellow-600 mr-2" />
-                <p className="text-yellow-800 font-medium">
+                <Clock className="w-5 h-5 text-yellow-600 mr-2 flex-shrink-0" />
+                <p className="text-yellow-800 font-medium text-sm sm:text-base">
                   This is a test. Your answers will be graded automatically.
                 </p>
               </div>
@@ -514,20 +523,20 @@ const PublicForm: React.FC = () => {
         </div>
 
         {/* Questions */}
-        <div className="space-y-8">
+        <div className="space-y-6 sm:space-y-8">
           {form.questions.map((question, questionIndex) => (
-            <div key={question.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-start justify-between mb-4">
+            <div key={question.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4">
                 <div className="flex-1">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
                     {questionIndex + 1}. {question.title}
                   </h3>
                   {question.description && (
-                    <p className="text-gray-600 mb-4">{question.description}</p>
+                    <p className="text-gray-600 mb-4 text-sm sm:text-base">{question.description}</p>
                   )}
                 </div>
                 {form.mode === 'test' && (
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-gray-500 mt-2 sm:mt-0">
                     {question.points} {question.points === 1 ? 'point' : 'points'}
                   </span>
                 )}
@@ -542,15 +551,18 @@ const PublicForm: React.FC = () => {
                 >
                   <div className="space-y-6">
                     {/* Available Items */}
-                    <DroppableAvailableItems
-                      questionIndex={questionIndex}
-                      items={availableItems[questionIndex] || []}
-                    />
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-3 text-sm sm:text-base">Available Items</h4>
+                      <DroppableAvailableItems
+                        questionIndex={questionIndex}
+                        items={availableItems[questionIndex] || []}
+                      />
+                    </div>
 
                     {/* Categories */}
                     <div>
-                      <h4 className="font-medium text-gray-900 mb-3">Categories</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <h4 className="font-medium text-gray-900 mb-3 text-sm sm:text-base">Categories</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {(question.categories || []).map((category, categoryIndex) => (
                           <DroppableCategory
                             key={categoryIndex}
@@ -569,7 +581,7 @@ const PublicForm: React.FC = () => {
               {question.type === 'cloze' && (
                 <div>
                   <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                    <p className="text-gray-900 text-lg leading-relaxed whitespace-pre-wrap">
+                    <p className="text-gray-900 text-base sm:text-lg leading-relaxed whitespace-pre-wrap">
                       {question.text?.split('___').map((part, index, array) => (
                         <React.Fragment key={index}>
                           {part}
@@ -585,7 +597,7 @@ const PublicForm: React.FC = () => {
                                   [questionIndex]: { blanks: newBlanks }
                                 }));
                               }}
-                              className="mx-2 px-3 py-1 border-b-2 border-blue-300 bg-transparent focus:border-blue-500 focus:outline-none min-w-20"
+                              className="mx-1 sm:mx-2 px-2 sm:px-3 py-1 border-b-2 border-blue-300 bg-transparent focus:border-blue-500 focus:outline-none min-w-16 sm:min-w-20 text-center"
                               placeholder="..."
                             />
                           )}
@@ -598,26 +610,26 @@ const PublicForm: React.FC = () => {
 
               {question.type === 'comprehension' && (
                 <div>
-                  <div className="bg-gray-50 p-6 rounded-lg mb-6">
+                  <div className="bg-gray-50 p-4 sm:p-6 rounded-lg mb-6">
                     <div className="flex items-center mb-4">
                       <BookOpen className="w-5 h-5 text-gray-600 mr-2" />
-                      <h4 className="font-medium text-gray-900">Reading Passage</h4>
+                      <h4 className="font-medium text-gray-900 text-sm sm:text-base">Reading Passage</h4>
                     </div>
-                    <div className="text-gray-900 leading-relaxed whitespace-pre-wrap">
+                    <div className="text-gray-900 leading-relaxed whitespace-pre-wrap text-sm sm:text-base">
                       {question.passage}
                     </div>
                   </div>
 
-                  <div className="space-y-6">
-                    <h4 className="font-medium text-gray-900">Questions</h4>
+                  <div className="space-y-4 sm:space-y-6">
+                    <h4 className="font-medium text-gray-900 text-sm sm:text-base">Questions</h4>
                     {(question.followUpQuestions || []).map((followUp, followUpIndex) => (
                       <div key={followUpIndex} className="bg-gray-50 p-4 rounded-lg">
-                        <h5 className="font-medium text-gray-900 mb-3">
+                        <h5 className="font-medium text-gray-900 mb-3 text-sm sm:text-base">
                           {followUpIndex + 1}. {followUp.question}
                         </h5>
                         <div className="space-y-2">
                           {followUp.options.map((option, optionIndex) => (
-                            <label key={optionIndex} className="flex items-center space-x-3 cursor-pointer">
+                            <label key={optionIndex} className="flex items-start space-x-3 cursor-pointer p-2 hover:bg-gray-100 rounded transition-colors">
                               <input
                                 type="radio"
                                 name={`question-${questionIndex}-followup-${followUpIndex}`}
@@ -631,9 +643,9 @@ const PublicForm: React.FC = () => {
                                     [questionIndex]: { followUpAnswers: newFollowUpAnswers }
                                   }));
                                 }}
-                                className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                                className="w-4 h-4 text-blue-600 focus:ring-blue-500 mt-0.5 flex-shrink-0"
                               />
-                              <span className="text-gray-900">{option}</span>
+                              <span className="text-gray-900 text-sm sm:text-base">{option}</span>
                             </label>
                           ))}
                         </div>
@@ -647,11 +659,11 @@ const PublicForm: React.FC = () => {
         </div>
 
         {/* Submit Button */}
-        <div className="mt-12 text-center">
+        <div className="mt-8 sm:mt-12 text-center">
           <button
             onClick={submitForm}
             disabled={submitting}
-            className="inline-flex items-center px-8 py-4 bg-blue-600 text-white text-lg font-semibold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+            className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 bg-blue-600 text-white text-lg font-semibold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
           >
             {submitting ? (
               <>

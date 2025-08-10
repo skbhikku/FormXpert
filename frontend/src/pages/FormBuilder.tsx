@@ -32,7 +32,9 @@ import {
   ChevronDown,
   ChevronUp,
   Upload,
-  Link
+  Link,
+  X,
+  Check
 } from 'lucide-react';
 
 interface Question {
@@ -188,91 +190,87 @@ const SortableQuestion = ({ question, index, onUpdate, onDelete, isNew }: {
 
   const renderQuestionEditor = () => {
     switch (question.type) {
-      // ... (previous code remains the same)
-
-case 'categorize':
-  return (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Items to categorize (one per line)
-        </label>
-        <textarea
-          value={question.items?.join('\n') || ''}
-          onChange={(e) => onUpdate(question.id, { items: e.target.value.split('\n') })}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.stopPropagation();
-            }
-          }}
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          rows={4}
-          placeholder="Apple&#10;Banana&#10;Car&#10;Truck"
-        />    
-      </div>
-      
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Categories
-        </label>
-        {question.categories?.map((category, categoryIndex) => (
-          <div key={categoryIndex} className="mb-3 p-4 bg-gray-50 rounded-lg relative">
-            <div className="flex items-center justify-between mb-2">
-              <input
-                type="text"
-                value={category.name}
-                onChange={(e) => {
-                  const newCategories = [...(question.categories || [])];
-                  newCategories[categoryIndex] = { ...category, name: e.target.value };
-                  onUpdate(question.id, { categories: newCategories });
+      case 'categorize':
+        return (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Items to categorize (one per line)
+              </label>
+              <textarea
+                value={question.items?.join('\n') || ''}
+                onChange={(e) => onUpdate(question.id, { items: e.target.value.split('\n') })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.stopPropagation();
+                  }
                 }}
-                className="w-full p-2 border border-gray-300 rounded-md category-input"
-                placeholder="Category name"
-                autoFocus={categoryIndex === newCategoryIndex}
-              />
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows={4}
+                placeholder="Apple&#10;Banana&#10;Car&#10;Truck"
+              />    
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Categories
+              </label>
+              {question.categories?.map((category, categoryIndex) => (
+                <div key={categoryIndex} className="mb-3 p-4 bg-gray-50 rounded-lg relative">
+                  <div className="flex items-center justify-between mb-2">
+                    <input
+                      type="text"
+                      value={category.name}
+                      onChange={(e) => {
+                        const newCategories = [...(question.categories || [])];
+                        newCategories[categoryIndex] = { ...category, name: e.target.value };
+                        onUpdate(question.id, { categories: newCategories });
+                      }}
+                      className="w-full p-2 border border-gray-300 rounded-md category-input"
+                      placeholder="Category name"
+                      autoFocus={categoryIndex === newCategoryIndex}
+                    />
+                    <button
+                      onClick={() => {
+                        const newCategories = [...(question.categories || [])];
+                        newCategories.splice(categoryIndex, 1);
+                        onUpdate(question.id, { categories: newCategories });
+                      }}
+                      className="ml-2 p-2 text-red-500 hover:bg-red-50 rounded-full"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  <textarea
+                    value={category.items?.join('\n') || ''}
+                    onChange={(e) => {
+                      const newCategories = [...(question.categories || [])];
+                      newCategories[categoryIndex] = { 
+                        ...category, 
+                        items: e.target.value.split('\n')
+                      };
+                      onUpdate(question.id, { categories: newCategories });
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.stopPropagation();
+                      }
+                    }}
+                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                    rows={2}
+                    placeholder="Items that belong in this category (one per line)"
+                  />
+                </div>
+              )) || []}
               <button
-                onClick={() => {
-                  const newCategories = [...(question.categories || [])];
-                  newCategories.splice(categoryIndex, 1);
-                  onUpdate(question.id, { categories: newCategories });
-                }}
-                className="ml-2 p-2 text-red-500 hover:bg-red-50 rounded-full"
+                onClick={handleAddCategory}
+                className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center"
               >
-                <Trash2 size={16} />
+                <Plus size={14} className="mr-1" /> Add Category
               </button>
             </div>
-            <textarea
-              value={category.items?.join('\n') || ''}
-              onChange={(e) => {
-                const newCategories = [...(question.categories || [])];
-                newCategories[categoryIndex] = { 
-                  ...category, 
-                  items: e.target.value.split('\n')
-                };
-                onUpdate(question.id, { categories: newCategories });
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.stopPropagation();
-                }
-              }}
-              className="w-full p-2 border border-gray-300 rounded-md text-sm"
-              rows={2}
-              placeholder="Items that belong in this category (one per line)"
-            />
           </div>
-        )) || []}
-        <button
-          onClick={handleAddCategory}
-          className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center"
-        >
-          <Plus size={14} className="mr-1" /> Add Category
-        </button>
-      </div>
-    </div>
-  );
-
-
+        );
 
       case 'cloze':
         return (
@@ -306,22 +304,21 @@ case 'categorize':
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Correct answers (one per line, in order)
               </label>
-             <textarea
-  value={
-    Array.isArray(question.correctAnswer)
-      ? question.correctAnswer.join('\n')
-      : ''
-  }
-  onChange={(e) =>
-    onUpdate(question.id, {
-      correctAnswer: e.target.value.split('\n')
-    })
-  }
-  rows={question.blanks || 2}
-  placeholder={`Paris\ncity`}
-  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-/>
-
+              <textarea
+                value={
+                  Array.isArray(question.correctAnswer)
+                    ? question.correctAnswer.join('\n')
+                    : ''
+                }
+                onChange={(e) =>
+                  onUpdate(question.id, {
+                    correctAnswer: e.target.value.split('\n')
+                  })
+                }
+                rows={question.blanks || 2}
+                placeholder={`Paris\ncity`}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
             </div>
           </div>
         );
@@ -488,7 +485,7 @@ case 'categorize':
                 value={question.title}
                 onChange={(e) => onUpdate(question.id, { title: e.target.value })}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-transparent border-none focus:ring-2 focus:ring-blue-500 rounded-md p-1 -ml-1"
+                className="bg-transparent border-none focus:ring-2 focus:ring-blue-500 rounded-md p-1 -ml-1 flex-1"
                 placeholder="Untitled Question"
               />
               <span className="ml-3 text-xs font-normal bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
@@ -579,6 +576,8 @@ const FormBuilder = () => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [imageSource, setImageSource] = useState<'url' | 'upload'>('url');
   const [newQuestionIds, setNewQuestionIds] = useState<string[]>([]);
+  const [selectedQuestionType, setSelectedQuestionType] = useState<'categorize' | 'cloze' | 'comprehension' | null>(null);
+  const [showQuestionTypeSelector, setShowQuestionTypeSelector] = useState(false);
 
   const [formData, setFormData] = useState<FormData>({
     title: '',
@@ -698,6 +697,10 @@ const FormBuilder = () => {
     
     // Mark as new for auto-expand and focus
     setNewQuestionIds(prev => [...prev, newQuestion.id]);
+    
+    // Set the selected question type for future additions
+    setSelectedQuestionType(type);
+    setShowQuestionTypeSelector(false);
   };
 
   const updateQuestion = (questionId: string, updates: Partial<Question>) => {
@@ -823,6 +826,30 @@ const FormBuilder = () => {
 
   const activeQuestion = formData.questions.find(q => q.id === activeId);
 
+  const questionTypes = [
+    {
+      type: 'categorize' as const,
+      icon: <List className="w-5 h-5" />,
+      title: 'Categorize',
+      description: 'Drag and drop items into categories',
+      color: 'purple'
+    },
+    {
+      type: 'cloze' as const,
+      icon: <Type className="w-5 h-5" />,
+      title: 'Cloze',
+      description: 'Fill in the blanks in text',
+      color: 'blue'
+    },
+    {
+      type: 'comprehension' as const,
+      icon: <BookOpen className="w-5 h-5" />,
+      title: 'Comprehension',
+      description: 'Reading passage with questions',
+      color: 'green'
+    }
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
@@ -838,7 +865,7 @@ const FormBuilder = () => {
               {id !== 'new' && (
                 <button
                   onClick={() => navigate(`/forms/${id}/view`)}
-                  className="fixed top-20 right-6 inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="hidden md:inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <Eye className="w-4 h-4 mr-2" />
                   Preview
@@ -848,7 +875,7 @@ const FormBuilder = () => {
               <button
                 onClick={saveForm}
                 disabled={saving}
-                className="fixed bottom-7 right-6 inline-flex items-center px-6 py-2 bg-blue-600 text-white font-medium rounded-lg shadow-lg hover:bg-blue-700 transition-colors disabled:opacity-50 z-40"
+                className="inline-flex items-center px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
               >
                 {saving ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
@@ -1031,30 +1058,57 @@ const FormBuilder = () => {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-gray-900">Questions</h2>
             
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => addQuestion('categorize')}
-                className="inline-flex items-center px-3 py-2 text-sm font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
-              >
-                <List className="w-4 h-4 mr-2" />
-                Categorize
-              </button>
-              
-              <button
-                onClick={() => addQuestion('cloze')}
-                className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-              >
-                <Type className="w-4 h-4 mr-2" />
-                Cloze
-              </button>
-              
-              <button
-                onClick={() => addQuestion('comprehension')}
-                className="inline-flex items-center px-3 py-2 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
-              >
-                <BookOpen className="w-4 h-4 mr-2" />
-                Comprehension
-              </button>
+            {/* Question Type Selection */}
+            <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
+              {selectedQuestionType && !showQuestionTypeSelector ? (
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => addQuestion(selectedQuestionType)}
+                    className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors shadow-sm ${
+                      selectedQuestionType === 'categorize' 
+                        ? 'text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200'
+                        : selectedQuestionType === 'cloze'
+                        ? 'text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200'
+                        : 'text-green-700 bg-green-50 hover:bg-green-100 border border-green-200'
+                    }`}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add {selectedQuestionType.charAt(0).toUpperCase() + selectedQuestionType.slice(1)}
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowQuestionTypeSelector(true)}
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    title="Change question type"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {questionTypes.map((questionType) => (
+                    <button
+                      key={questionType.type}
+                      onClick={() => addQuestion(questionType.type)}
+                      className={`inline-flex flex-col items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors shadow-sm border ${
+                        questionType.color === 'purple' 
+                          ? 'text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-200'
+                          : questionType.color === 'blue'
+                          ? 'text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200'
+                          : 'text-green-700 bg-green-50 hover:bg-green-100 border-green-200'
+                      }`}
+                    >
+                      <div className="flex items-center mb-1">
+                        {questionType.icon}
+                        <span className="ml-2">{questionType.title}</span>
+                      </div>
+                      <span className="text-xs opacity-75 text-center hidden sm:block">
+                        {questionType.description}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1064,7 +1118,7 @@ const FormBuilder = () => {
                 <Plus className="w-6 h-6 text-gray-400" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">No questions yet</h3>
-              <p className="text-gray-600 mb-4">Add your first question to get started</p>
+              <p className="text-gray-600 mb-4">Choose a question type above to get started</p>
             </div>
           ) : (
             <DndContext 
@@ -1105,6 +1159,22 @@ const FormBuilder = () => {
             </DndContext>
           )}
         </div>
+      </div>
+
+      {/* Mobile Save Button */}
+      <div className="fixed bottom-4 right-4 sm:hidden">
+        <button
+          onClick={saveForm}
+          disabled={saving}
+          className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-full shadow-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+        >
+          {saving ? (
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+          ) : (
+            <Save className="w-5 h-5 mr-2" />
+          )}
+          Save
+        </button>
       </div>
     </div>
   );
