@@ -19,7 +19,7 @@ import {
 } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { CheckCircle, Clock, Trophy, BookOpen, GripVertical } from 'lucide-react';
+import { CheckCircle, Clock, Trophy, BookOpen, GripVertical, X } from 'lucide-react';
 
 interface Question {
   id: string;
@@ -67,14 +67,17 @@ interface ItemObj {
 interface DraggableItemProps {
   id: string;
   value: string;
+  // optional remove callback: when provided, an "X" will be shown and clicking it will call onRemove(id)
+  onRemove?: (id: string) => void;
 }
 
 /**
  * DraggableItem
- * - Important: we set touchAction: 'none' so mobile touch doesn't trigger native scrolling while dragging.
- * - Uses useSortable with an unambiguous id (we generate stable ids when building state).
+ * - Uses useSortable for drag behaviour.
+ * - Drag listeners/attributes are attached to a dedicated handle to avoid interfering with the remove button click.
+ * - The root still uses setNodeRef and sets touchAction: 'none' for mobile reliability.
  */
-const DraggableItem: React.FC<DraggableItemProps> = ({ id, value }) => {
+const DraggableItem: React.FC<DraggableItemProps> = ({ id, value, onRemove }) => {
   const {
     attributes,
     listeners,
@@ -88,7 +91,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ id, value }) => {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    touchAction: 'none', // <- critical for mobile drag to work reliably
+    touchAction: 'none',
     WebkitUserSelect: 'none',
   };
 
@@ -96,14 +99,40 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ id, value }) => {
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
-      className="bg-blue-50 border border-blue-200 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:bg-blue-100 transition-colors select-none"
+      className="bg-blue-50 border border-blue-200 rounded-lg p-3 hover:bg-blue-100 transition-colors select-none flex items-center"
     >
-      <div className="flex items-center">
-        <GripVertical className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
-        <span className="text-sm sm:text-base">{value}</span>
-      </div>
+      {/* Drag handle: attributes & listeners are applied only here so other inner controls (like remove) won't start drag */}
+      <button
+        type="button"
+        aria-label="drag handle"
+        {...attributes}
+        {...listeners}
+        className="mr-3 p-1 rounded-md hover:bg-blue-100 focus:outline-none flex items-center justify-center cursor-grab"
+        onClick={(e) => {
+          // prevent focusing triggering anything else
+          e.stopPropagation();
+        }}
+      >
+        <GripVertical className="w-4 h-4 text-gray-500" />
+      </button>
+
+      <div className="text-sm sm:text-base truncate">{value}</div>
+
+      {onRemove && (
+        <button
+          type="button"
+          aria-label="remove item"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onRemove(id);
+          }}
+          className="ml-auto p-1 rounded-full hover:bg-red-50 focus:outline-none"
+          title="Remove and move back to available items"
+        >
+          <X className="w-4 h-4 text-red-500" />
+        </button>
+      )}
     </div>
   );
 };
@@ -140,9 +169,10 @@ interface DroppableCategoryProps {
   categoryIndex: number;
   category: { name: string };
   items: ItemObj[];
+  onRemoveItem: (itemId: string) => void;
 }
 
-const DroppableCategory: React.FC<DroppableCategoryProps> = ({ questionIndex, categoryIndex, category, items }) => {
+const DroppableCategory: React.FC<DroppableCategoryProps> = ({ questionIndex, categoryIndex, category, items, onRemoveItem }) => {
   const droppableId = `category-${questionIndex}-${categoryIndex}`;
   const { setNodeRef, isOver } = useDroppable({ id: droppableId });
   
@@ -157,7 +187,7 @@ const DroppableCategory: React.FC<DroppableCategoryProps> = ({ questionIndex, ca
       <h5 className="font-medium text-gray-900 mb-3 text-sm sm:text-base">{category.name}</h5>
       <div className="space-y-2">
         {items.map(item => (
-          <DraggableItem key={item.id} id={item.id} value={item.value} />
+          <DraggableItem key={item.id} id={item.id} value={item.value} onRemove={onRemoveItem} />
         ))}
         {items.length === 0 && (
           <p className="text-gray-500 text-sm italic text-center py-2">Drop items here</p>
@@ -184,16 +214,16 @@ const PublicForm: React.FC = () => {
   const [availableItems, setAvailableItems] = useState<{ [key: number]: ItemObj[] }>({});
   const [categorizedItems, setCategorizedItems] = useState<{ [key: number]: { [categoryIndex: number]: ItemObj[] } }>({});
 
-  // sensors: make touch a bit more responsive on mobile
+  // sensors: handle drag from handle; pointer distance can be 0 because handle reduces accidental drags
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 0, // start immediately on pointer move
+        distance: 0,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 120, // shorter delay for mobile long-press start (ms)
+        delay: 120,
         tolerance: 8,
       },
     }),
@@ -261,7 +291,7 @@ const PublicForm: React.FC = () => {
       const found = arr.find(i => i.id === itemId);
       if (found) return found;
     }
-    // as a fallback, try to parse pattern q{q}-i{idx} and map back to original form.questions items
+    // fallback: parse id pattern q{q}-i{idx} to original form.questions items
     const m = itemId.match(/^q(\d+)-i(\d+)$/);
     if (m && form) {
       const qIdx = Number(m[1]);
@@ -329,6 +359,45 @@ const PublicForm: React.FC = () => {
     setCategorizedItems(prev => ({ ...prev, [questionIndex]: newCategorized }));
 
     // Update answers in readable form (values only)
+    const categoriesArray = (question.categories || []).map((_, idx) =>
+      (newCategorized[idx] || []).map(it => it.value)
+    );
+
+    setAnswers(prev => ({
+      ...prev,
+      [questionIndex]: {
+        categories: categoriesArray
+      }
+    }));
+  };
+
+  // Move an item from any category (for the question) back to available items
+  const moveItemToAvailable = (questionIndex: number, itemId: string) => {
+    const question = form?.questions[questionIndex];
+    if (!question || question.type !== 'categorize') return;
+
+    const currentAvailable = [...(availableItems[questionIndex] || [])];
+    const currentCategorized = { ...(categorizedItems[questionIndex] || {}) };
+
+    // Remove from all categories
+    const newCategorized: { [key: number]: ItemObj[] } = {};
+    (question.categories || []).forEach((_, catIdx) => {
+      newCategorized[catIdx] = (currentCategorized[catIdx] || []).filter(i => i.id !== itemId);
+    });
+
+    // Find item object (value + id) - use helper that can rebuild object if needed
+    const itemObj = findItemObj(questionIndex, itemId);
+    if (!itemObj) return;
+
+    // Add back to available if not present
+    const existsInAvailable = currentAvailable.some(i => i.id === itemId);
+    const newAvailable = existsInAvailable ? currentAvailable : [...currentAvailable, itemObj];
+
+    // Update state
+    setAvailableItems(prev => ({ ...prev, [questionIndex]: newAvailable }));
+    setCategorizedItems(prev => ({ ...prev, [questionIndex]: newCategorized }));
+
+    // Update answers (values only)
     const categoriesArray = (question.categories || []).map((_, idx) =>
       (newCategorized[idx] || []).map(it => it.value)
     );
@@ -620,6 +689,7 @@ const PublicForm: React.FC = () => {
                             categoryIndex={categoryIndex}
                             category={category}
                             items={categorizedItems[questionIndex]?.[categoryIndex] || []}
+                            onRemoveItem={(itemId: string) => moveItemToAvailable(questionIndex, itemId)}
                           />
                         ))}
                       </div>
