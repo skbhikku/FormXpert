@@ -59,12 +59,22 @@ interface SubmissionResult {
   correctAnswers?: unknown[];
 }
 
-interface DraggableItemProps {
+interface ItemObj {
   id: string;
-  item: string;
+  value: string;
 }
 
-const DraggableItem: React.FC<DraggableItemProps> = ({ id, item }) => {
+interface DraggableItemProps {
+  id: string;
+  value: string;
+}
+
+/**
+ * DraggableItem
+ * - Important: we set touchAction: 'none' so mobile touch doesn't trigger native scrolling while dragging.
+ * - Uses useSortable with an unambiguous id (we generate stable ids when building state).
+ */
+const DraggableItem: React.FC<DraggableItemProps> = ({ id, value }) => {
   const {
     attributes,
     listeners,
@@ -74,10 +84,12 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ id, item }) => {
     isDragging,
   } = useSortable({ id });
 
-  const style = {
+  const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    touchAction: 'none', // <- critical for mobile drag to work reliably
+    WebkitUserSelect: 'none',
   };
 
   return (
@@ -86,11 +98,11 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ id, item }) => {
       style={style}
       {...attributes}
       {...listeners}
-      className="bg-blue-50 border border-blue-200 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:bg-blue-100 transition-colors select-none touch-manipulation"
+      className="bg-blue-50 border border-blue-200 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:bg-blue-100 transition-colors select-none"
     >
       <div className="flex items-center">
         <GripVertical className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
-        <span className="text-sm sm:text-base">{item}</span>
+        <span className="text-sm sm:text-base">{value}</span>
       </div>
     </div>
   );
@@ -98,7 +110,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ id, item }) => {
 
 interface DroppableAvailableItemsProps {
   questionIndex: number;
-  items: string[];
+  items: ItemObj[];
 }
 
 const DroppableAvailableItems: React.FC<DroppableAvailableItemsProps> = ({ questionIndex, items }) => {
@@ -112,7 +124,7 @@ const DroppableAvailableItems: React.FC<DroppableAvailableItemsProps> = ({ quest
       }`}
     >
       {items.map(item => (
-        <DraggableItem key={`${questionIndex}-${item}`} id={`${questionIndex}-${item}`} item={item} />
+        <DraggableItem key={item.id} id={item.id} value={item.value} />
       ))}
       {items.length === 0 && (
         <p className="text-gray-500 text-sm italic col-span-full text-center py-4">
@@ -127,7 +139,7 @@ interface DroppableCategoryProps {
   questionIndex: number;
   categoryIndex: number;
   category: { name: string };
-  items: string[];
+  items: ItemObj[];
 }
 
 const DroppableCategory: React.FC<DroppableCategoryProps> = ({ questionIndex, categoryIndex, category, items }) => {
@@ -145,7 +157,7 @@ const DroppableCategory: React.FC<DroppableCategoryProps> = ({ questionIndex, ca
       <h5 className="font-medium text-gray-900 mb-3 text-sm sm:text-base">{category.name}</h5>
       <div className="space-y-2">
         {items.map(item => (
-          <DraggableItem key={`${questionIndex}-${item}`} id={`${questionIndex}-${item}`} item={item} />
+          <DraggableItem key={item.id} id={item.id} value={item.value} />
         ))}
         {items.length === 0 && (
           <p className="text-gray-500 text-sm italic text-center py-2">Drop items here</p>
@@ -169,18 +181,19 @@ const PublicForm: React.FC = () => {
   type Answer = CategorizeAnswer | ClozeAnswer | ComprehensionAnswer | undefined;
   
   const [answers, setAnswers] = useState<Record<number, Answer>>({});
-  const [availableItems, setAvailableItems] = useState<{ [key: number]: string[] }>({});
-  const [categorizedItems, setCategorizedItems] = useState<{ [key: number]: { [categoryIndex: number]: string[] } }>({});
+  const [availableItems, setAvailableItems] = useState<{ [key: number]: ItemObj[] }>({});
+  const [categorizedItems, setCategorizedItems] = useState<{ [key: number]: { [categoryIndex: number]: ItemObj[] } }>({});
 
+  // sensors: make touch a bit more responsive on mobile
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 0, // start immediately on pointer move
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 200,
+        delay: 120, // shorter delay for mobile long-press start (ms)
         tolerance: 8,
       },
     }),
@@ -195,19 +208,25 @@ const PublicForm: React.FC = () => {
       setForm(response.data);
       
       const initialAnswers: Record<number, Answer> = {};
-      const initialAvailable: { [key: number]: string[] } = {};
-      const initialCategorized: { [key: number]: { [categoryIndex: number]: string[] } } = {};
+      const initialAvailable: { [key: number]: ItemObj[] } = {};
+      const initialCategorized: { [key: number]: { [categoryIndex: number]: ItemObj[] } } = {};
       
       response.data.questions.forEach((question: Question, index: number) => {
         if (question.type === 'categorize') {
-          initialAvailable[index] = [...(question.items || [])];
+          // create stable ids for each item: q{questionIndex}-i{itemIndex}
+          initialAvailable[index] = (question.items || []).map((it, itemIdx) => ({
+            id: `q${index}-i${itemIdx}`,
+            value: it,
+          }));
           initialCategorized[index] = {};
           question.categories?.forEach((_, catIndex) => {
             initialCategorized[index][catIndex] = [];
           });
           initialAnswers[index] = { categories: [] };
         } else if (question.type === 'cloze') {
-          initialAnswers[index] = { blanks: new Array(question.blanks || 0).fill('') };
+          // Count blank sequences (2+ underscores) instead of using question.blanks
+          const blankCount = (question.text?.match(/_{2,}/g) || []).length;
+          initialAnswers[index] = { blanks: new Array(blankCount).fill('') };
         } else if (question.type === 'comprehension') {
           initialAnswers[index] = { 
             followUpAnswers: new Array(question.followUpQuestions?.length || 0).fill('') 
@@ -231,6 +250,30 @@ const PublicForm: React.FC = () => {
     }
   }, [id, fetchForm]);
 
+  // helper to find item by id inside our structured state
+  const findItemObj = (questionIndex: number, itemId: string): ItemObj | undefined => {
+    const avail = availableItems[questionIndex] || [];
+    const foundInAvail = avail.find(i => i.id === itemId);
+    if (foundInAvail) return foundInAvail;
+    const cats = categorizedItems[questionIndex] || {};
+    for (const k of Object.keys(cats)) {
+      const arr = cats[Number(k)] || [];
+      const found = arr.find(i => i.id === itemId);
+      if (found) return found;
+    }
+    // as a fallback, try to parse pattern q{q}-i{idx} and map back to original form.questions items
+    const m = itemId.match(/^q(\d+)-i(\d+)$/);
+    if (m && form) {
+      const qIdx = Number(m[1]);
+      const iIdx = Number(m[2]);
+      const q = form.questions[qIdx];
+      if (q && q.items && q.items[iIdx] !== undefined) {
+        return { id: itemId, value: q.items[iIdx] };
+      }
+    }
+    return undefined;
+  };
+
   const handleDragEnd = (event: DragEndEvent, questionIndex: number) => {
     const { active, over } = event;
     if (!over || !form) return;
@@ -238,50 +281,57 @@ const PublicForm: React.FC = () => {
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    // Only for categorize questions
     const question = form.questions[questionIndex];
     if (!question || question.type !== 'categorize') return;
 
-    // Extract actual item value from ID
-    const itemId = activeId.split('-').slice(1).join('-');
-
-    // Clone current state
+    // Clone current state for this question
     const currentAvailable = [...(availableItems[questionIndex] || [])];
     const currentCategorized = { ...(categorizedItems[questionIndex] || {}) };
 
-    let newAvailable = [...currentAvailable];
-    const newCategorized = { ...currentCategorized };
-
-    // Remove item from all locations
-    newAvailable = newAvailable.filter(i => i !== itemId);
-    Object.keys(newCategorized).forEach(catIdx => {
-      const idx = parseInt(catIdx);
-      newCategorized[idx] = (newCategorized[idx] || []).filter(i => i !== itemId);
+    // Deep clone category arrays
+    const newCategorized: { [key: number]: ItemObj[] } = {};
+    (question.categories || []).forEach((_, catIdx) => {
+      newCategorized[catIdx] = [...(currentCategorized[catIdx] || [])];
     });
 
-    // Add to new location
+    // Remove the item from all places first
+    let newAvailable = currentAvailable.filter(i => i.id !== activeId);
+    Object.keys(newCategorized).forEach(catIdxStr => {
+      const idx = Number(catIdxStr);
+      newCategorized[idx] = newCategorized[idx].filter(i => i.id !== activeId);
+    });
+
+    // Get the actual item object (value + id)
+    const itemObj = findItemObj(questionIndex, activeId);
+    if (!itemObj) {
+      // nothing to do if we couldn't find the item
+      return;
+    }
+
+    // Add to destination
     if (overId.startsWith('category-')) {
-      const parts = overId.split('-');
+      const parts = overId.split('-'); // ["category", "{questionIndex}", "{categoryIndex}"]
       if (parts.length >= 3) {
-        const targetQuestionIndex = parseInt(parts[1]);
-        const categoryIndex = parseInt(parts[2]);
+        const targetQuestionIndex = parseInt(parts[1], 10);
+        const categoryIndex = parseInt(parts[2], 10);
         
         if (targetQuestionIndex === questionIndex) {
-          newCategorized[categoryIndex] = [...(newCategorized[categoryIndex] || []), itemId];
+          // ensure bucket exists
+          newCategorized[categoryIndex] = [...(newCategorized[categoryIndex] || []), itemObj];
         }
       }
     } else if (overId === `available-${questionIndex}`) {
-      newAvailable = [...newAvailable, itemId];
+      newAvailable = [...newAvailable, itemObj];
     }
 
     // Update state
     setAvailableItems(prev => ({ ...prev, [questionIndex]: newAvailable }));
     setCategorizedItems(prev => ({ ...prev, [questionIndex]: newCategorized }));
 
-    // Update answer
-    const categoriesArray = question.categories?.map((_, idx) => 
-      newCategorized[idx] || []
-    ) || [];
+    // Update answers in readable form (values only)
+    const categoriesArray = (question.categories || []).map((_, idx) =>
+      (newCategorized[idx] || []).map(it => it.value)
+    );
 
     setAnswers(prev => ({
       ...prev,
@@ -324,9 +374,9 @@ const PublicForm: React.FC = () => {
       const finalAnswers: Record<number, Answer> = {};
       form.questions.forEach((question, index) => {
         if (question.type === 'categorize') {
-          const categoriesArray = question.categories?.map((_, idx) => 
-            categorizedItems[index]?.[idx] || []
-          ) || [];
+          const categoriesArray = (question.categories || []).map((_, idx) =>
+            (categorizedItems[index]?.[idx] || []).map(it => it.value)
+          );
           
           finalAnswers[index] = {
             categories: categoriesArray
@@ -393,7 +443,7 @@ const PublicForm: React.FC = () => {
             {form.mode === 'test' && result.score !== undefined && (
               <div className="mb-6">
                 <div className="text-4xl sm:text-6xl font-bold text-blue-600 mb-2">
-                  {result.percentage}%
+                  {result.percentage}% 
                 </div>
                 <p className="text-base sm:text-lg text-gray-600">
                   You scored {result.score} out of {result.maxScore} points
@@ -582,27 +632,37 @@ const PublicForm: React.FC = () => {
                 <div>
                   <div className="bg-gray-50 p-4 rounded-lg mb-4">
                     <p className="text-gray-900 text-base sm:text-lg leading-relaxed whitespace-pre-wrap">
-                      {question.text?.split('___').map((part, index, array) => (
-                        <React.Fragment key={index}>
-                          {part}
-                          {index < array.length - 1 && (
-                            <input
-                              type="text"
-                              value={(answers[questionIndex] as ClozeAnswer | undefined)?.blanks?.[index] || ''}
-                              onChange={(e) => {
-                                const newBlanks = [...((answers[questionIndex] as ClozeAnswer | undefined)?.blanks || [])];
-                                newBlanks[index] = e.target.value;
-                                setAnswers(prev => ({
-                                  ...prev,
-                                  [questionIndex]: { blanks: newBlanks }
-                                }));
-                              }}
-                              className="mx-1 sm:mx-2 px-2 sm:px-3 py-1 border-b-2 border-blue-300 bg-transparent focus:border-blue-500 focus:outline-none min-w-16 sm:min-w-20 text-center"
-                              placeholder="..."
-                            />
-                          )}
-                        </React.Fragment>
-                      ))}
+                      {(() => {
+                        const parts = question.text?.split(/(_{2,})/g) || [];
+                        let blankIndex = 0;
+                        
+                        return parts.map((part, partIndex) => {
+                          // Check if this part is a blank sequence (2+ underscores)
+                          if (part.match(/^_{2,}$/)) {
+                            const currentBlankIndex = blankIndex;
+                            blankIndex++;
+                            
+                            return (
+                              <input
+                                key={partIndex}
+                                type="text"
+                                value={(answers[questionIndex] as ClozeAnswer | undefined)?.blanks?.[currentBlankIndex] || ''}
+                                onChange={(e) => {
+                                  const newBlanks = [...((answers[questionIndex] as ClozeAnswer | undefined)?.blanks || [])];
+                                  newBlanks[currentBlankIndex] = e.target.value;
+                                  setAnswers(prev => ({
+                                    ...prev,
+                                    [questionIndex]: { blanks: newBlanks }
+                                  }));
+                                }}
+                                className="mx-1 sm:mx-2 px-2 sm:px-3 py-1 border-b-2 border-blue-300 bg-transparent focus:border-blue-500 focus:outline-none min-w-16 sm:min-w-20 text-center"
+                                placeholder="..."
+                              />
+                            );
+                          }
+                          return <span key={partIndex}>{part}</span>;
+                        });
+                      })()}
                     </p>
                   </div>
                 </div>
