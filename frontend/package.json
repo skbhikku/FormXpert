@@ -19,6 +19,7 @@
     "axios": "^1.11.0",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
+    "framer-motion": "^12.23.12",
     "helmet": "^8.1.0",
     "lucide-react": "^0.537.0",
     "mongoose": "^8.17.1",
@@ -64,7 +65,7 @@
     "uuid": "^11.1.0",
     "vite": "^5.4.2"
   },
-  "rules":{
+  "rules": {
     "@typescript-eslint/no-explicit-any": "['error', { ignoreRestArgs: false }]",
     "@typescript-eslint/no-implicit-any-catch": "off"
   }
