@@ -12,13 +12,18 @@ import {
   Calendar, 
   TrendingUp,
   Eye,
-  BarChart3
+  BarChart3,
+  Trash2,
+  Loader,
+  AlertCircle,
+  Check
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { motion, AnimatePresence } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 interface Response {
-  id: number;
+  id: string;
   answers: { [key: number]: any };
   score?: number;
   maxScore?: number;
@@ -40,8 +45,12 @@ const FormResponses = () => {
   const [form, setForm] = useState<FormData | null>(null);
   const [responses, setResponses] = useState<Response[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
   const [selectedResponse, setSelectedResponse] = useState<Response | null>(null);
   const [filter, setFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteType, setDeleteType] = useState<'single' | 'all' | null>(null);
+  const [responseToDelete, setResponseToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -67,6 +76,62 @@ const FormResponses = () => {
       toast.error('Failed to load responses');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openDeleteModal = (type: 'single' | 'all', responseId?: string) => {
+    setDeleteType(type);
+    if (type === 'single' && responseId) {
+      setResponseToDelete(responseId);
+    }
+    setShowDeleteModal(true);
+  };
+
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeleteType(null);
+    setResponseToDelete(null);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteType) return;
+    
+    try {
+      setDeleting(true);
+      
+      if (deleteType === 'single' && responseToDelete) {
+        await axios.delete(`/responses/${responseToDelete}`);
+        setResponses(responses.filter(r => r.id !== responseToDelete));
+        toast.success('Response deleted successfully');
+        
+        if (form) {
+          setForm({
+            ...form,
+            responseCount: form.responseCount - 1
+          });
+        }
+        
+        if (selectedResponse?.id === responseToDelete) {
+          setSelectedResponse(null);
+        }
+      } 
+      else if (deleteType === 'all') {
+        await axios.delete(`/responses/form/${id}`);
+        setResponses([]);
+        toast.success('All responses deleted successfully');
+        
+        if (form) {
+          setForm({
+            ...form,
+            responseCount: 0
+          });
+        }
+      }
+    } catch (error) {
+      toast.error('Failed to delete response');
+    } finally {
+      setDeleting(false);
+      closeDeleteModal();
     }
   };
 
@@ -222,20 +287,40 @@ const FormResponses = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+        <motion.div
+          animate={{ 
+            rotate: 360,
+            transition: { 
+              duration: 1, 
+              repeat: Infinity,
+              ease: "linear"
+            } 
+          }}
+          className="w-16 h-16 rounded-full border-t-4 border-b-4 border-blue-500"
+        />
       </div>
     );
   }
 
   if (!form) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Form Not Found</h1>
-          <Link to="/dashboard" className="text-blue-600 hover:text-blue-700">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="w-10 h-10 text-red-500" />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-800 mb-3">Form Not Found</h1>
+          <p className="text-slate-600 mb-8">The form you're looking for is no longer available or doesn't exist.</p>
+          <motion.button
+            onClick={() => navigate('/dashboard')}
+            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all font-medium flex items-center justify-center w-full"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <ArrowLeft className="w-5 h-5 mr-2" />
             Return to Dashboard
-          </Link>
+          </motion.button>
         </div>
       </div>
     );
@@ -255,138 +340,191 @@ const FormResponses = () => {
     : null;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <button
+          <motion.button
             onClick={() => navigate('/dashboard')}
-            className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
+            className="inline-flex items-center text-slate-600 hover:text-slate-900 mb-4 group"
+            whileHover={{ x: -5 }}
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
             Back to Dashboard
-          </button>
+          </motion.button>
           
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              <motion.h1 
+                className="text-3xl font-bold text-slate-900 mb-2"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
                 Responses for "{form.title}"
-              </h1>
-              <div className="flex items-center space-x-4 text-sm text-gray-500">
-                <div className="flex items-center">
-                  <Users className="w-4 h-4 mr-1" />
-                  {responses.length} total responses
+              </motion.h1>
+              <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                <div className="flex items-center bg-slate-100 px-3 py-1 rounded-full">
+                  <Users className="w-4 h-4 mr-1.5 text-slate-500" />
+                  <span>{responses.length} total responses</span>
                 </div>
-                <div className="flex items-center">
-                  <BarChart3 className="w-4 h-4 mr-1" />
-                  {form.mode === 'test' ? 'Test Mode' : 'Survey Mode'}
+                <div className="flex items-center bg-slate-100 px-3 py-1 rounded-full">
+                  <BarChart3 className="w-4 h-4 mr-1.5 text-slate-500" />
+                  <span>{form.mode === 'test' ? 'Test Mode' : 'Survey Mode'}</span>
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center space-x-3 mt-4 sm:mt-0">
-              <div className="flex items-center space-x-2 bg-white rounded-lg border border-gray-300 p-1">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center bg-white rounded-xl border border-slate-200 shadow-sm p-1">
                 {(['all', 'today', 'week', 'month'] as const).map((f) => (
-                  <button
+                  <motion.button
                     key={f}
                     onClick={() => setFilter(f)}
-                    className={`px-3 py-1 text-sm font-medium rounded-md transition-colors capitalize ${
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all capitalize ${
                       filter === f 
-                        ? 'bg-blue-600 text-white' 
-                        : 'text-gray-600 hover:text-gray-900'
+                        ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md' 
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                   >
                     {f}
-                  </button>
+                  </motion.button>
                 ))}
               </div>
               
-              <button
-                onClick={exportToCSV}
-                disabled={responses.length === 0}
-                className="inline-flex items-center px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Export CSV
-              </button>
+              {responses.length > 0 && (
+                <motion.button
+                  onClick={exportToCSV}
+                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-medium rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all shadow-md"
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export CSV
+                </motion.button>
+              )}
+              
+              {responses.length > 0 && (
+                <motion.button
+                  onClick={() => openDeleteModal('all')}
+                  disabled={deleting}
+                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white font-medium rounded-xl hover:from-red-600 hover:to-rose-700 transition-all shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {deleting ? (
+                    <Loader className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4 mr-2" />
+                  )}
+                  Delete All
+                </motion.button>
+              )}
             </div>
           </div>
         </div>
 
         {responses.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-2xl shadow-sm border border-gray-200">
-            <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No responses yet</h3>
-            <p className="text-gray-600 mb-6">Share your form to start collecting responses</p>
+          <div className="text-center py-16 bg-white rounded-3xl shadow-lg border border-slate-200/50">
+            <Users className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-slate-900 mb-2">No responses yet</h3>
+            <p className="text-slate-600 mb-6">Share your form to start collecting responses</p>
             <Link
               to={`/forms/${id}/view`}
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all shadow-md"
             >
               <Eye className="w-4 h-4 mr-2" />
               View & Share Form
             </Link>
           </div>
         ) : (
-          <div className="space-y-8">
+          <motion.div 
+            className="space-y-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
             {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <motion.div 
+                className="bg-gradient-to-br from-white to-slate-50 p-6 rounded-2xl shadow-md border border-slate-200/50"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+              >
                 <div className="flex items-center">
-                  <div className="p-3 bg-blue-100 rounded-xl">
+                  <div className="p-3 bg-gradient-to-r from-blue-100 to-cyan-100 rounded-xl shadow-sm">
                     <Users className="w-6 h-6 text-blue-600" />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Total Responses</p>
-                    <p className="text-2xl font-bold text-gray-900">{responses.length}</p>
+                    <p className="text-sm font-medium text-slate-600">Total Responses</p>
+                    <p className="text-2xl font-bold text-slate-900">{responses.length}</p>
                   </div>
                 </div>
-              </div>
+              </motion.div>
 
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+              <motion.div 
+                className="bg-gradient-to-br from-white to-slate-50 p-6 rounded-2xl shadow-md border border-slate-200/50"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 }}
+              >
                 <div className="flex items-center">
-                  <div className="p-3 bg-green-100 rounded-xl">
+                  <div className="p-3 bg-gradient-to-r from-green-100 to-emerald-100 rounded-xl shadow-sm">
                     <Calendar className="w-6 h-6 text-green-600" />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">This Week</p>
-                    <p className="text-2xl font-bold text-gray-900">
+                    <p className="text-sm font-medium text-slate-600">This Week</p>
+                    <p className="text-2xl font-bold text-slate-900">
                       {responses.filter(r => 
                         new Date(r.submittedAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
                       ).length}
                     </p>
                   </div>
                 </div>
-              </div>
+              </motion.div>
 
               {form.mode === 'test' && avgScore !== null && (
                 <>
-                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+                  <motion.div 
+                    className="bg-gradient-to-br from-white to-slate-50 p-6 rounded-2xl shadow-md border border-slate-200/50"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.3 }}
+                  >
                     <div className="flex items-center">
-                      <div className="p-3 bg-purple-100 rounded-xl">
+                      <div className="p-3 bg-gradient-to-r from-purple-100 to-violet-100 rounded-xl shadow-sm">
                         <TrendingUp className="w-6 h-6 text-purple-600" />
                       </div>
                       <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Average Score</p>
-                        <p className="text-2xl font-bold text-gray-900">{Math.round(avgScore)}%</p>
+                        <p className="text-sm font-medium text-slate-600">Average Score</p>
+                        <p className="text-2xl font-bold text-slate-900">{Math.round(avgScore)}%</p>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
 
-                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+                  <motion.div 
+                    className="bg-gradient-to-br from-white to-slate-50 p-6 rounded-2xl shadow-md border border-slate-200/50"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.4 }}
+                  >
                     <div className="flex items-center">
-                      <div className="p-3 bg-yellow-100 rounded-xl">
-                        <BarChart3 className="w-6 h-6 text-yellow-600" />
+                      <div className="p-3 bg-gradient-to-r from-amber-100 to-yellow-100 rounded-xl shadow-sm">
+                        <BarChart3 className="w-6 h-6 text-amber-600" />
                       </div>
                       <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Pass Rate</p>
-                        <p className="text-2xl font-bold text-gray-900">
+                        <p className="text-sm font-medium text-slate-600">Pass Rate</p>
+                        <p className="text-2xl font-bold text-slate-900">
                           {Math.round((responses.filter(r => 
                             r.score && r.maxScore && (r.score / r.maxScore) >= 0.7
                           ).length / responses.length) * 100)}%
                         </p>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 </>
               )}
             </div>
@@ -394,88 +532,129 @@ const FormResponses = () => {
             {/* Charts */}
             {chartData.length > 1 && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Response Trend</h3>
+                <motion.div 
+                  className="bg-gradient-to-br from-white to-slate-50 p-6 rounded-2xl shadow-md border border-slate-200/50"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.2 }}
+                >
+                  <h3 className="text-lg font-semibold text-slate-900 mb-4">Response Trend</h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis />
-                      <Tooltip />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="date" stroke="#64748b" />
+                      <YAxis stroke="#64748b" />
+                      <Tooltip 
+                        contentStyle={{ 
+                          background: 'rgba(255, 255, 255, 0.9)',
+                          backdropFilter: 'blur(10px)',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '0.5rem'
+                        }} 
+                      />
                       <Line 
                         type="monotone" 
                         dataKey="count" 
                         stroke="#3B82F6" 
                         strokeWidth={2}
                         name="Responses"
+                        dot={{ r: 4, fill: '#3B82F6' }}
+                        activeDot={{ r: 6, fill: '#2563eb' }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
-                </div>
+                </motion.div>
 
                 {form.mode === 'test' && scoreDistribution.length > 0 && (
-                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Score Distribution</h3>
+                  <motion.div 
+                    className="bg-gradient-to-br from-white to-slate-50 p-6 rounded-2xl shadow-md border border-slate-200/50"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.3 }}
+                  >
+                    <h3 className="text-lg font-semibold text-slate-900 mb-4">Score Distribution</h3>
                     <ResponsiveContainer width="100%" height={300}>
                       <BarChart data={scoreDistribution}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="range" />
-                        <YAxis />
-                        <Tooltip />
-                        <Bar dataKey="count" fill="#8B5CF6" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis dataKey="range" stroke="#64748b" />
+                        <YAxis stroke="#64748b" />
+                        <Tooltip 
+                          contentStyle={{ 
+                            background: 'rgba(255, 255, 255, 0.9)',
+                            backdropFilter: 'blur(10px)',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '0.5rem'
+                          }} 
+                        />
+                        <Bar 
+                          dataKey="count" 
+                          fill="#8B5CF6" 
+                          radius={[4, 4, 0, 0]}
+                        />
                       </BarChart>
                     </ResponsiveContainer>
-                  </div>
+                  </motion.div>
                 )}
               </div>
             )}
 
             {/* Responses Table */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Individual Responses</h3>
+            <motion.div 
+              className="bg-gradient-to-br from-white to-slate-50 rounded-2xl shadow-md border border-slate-200/50 overflow-hidden"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.4 }}
+            >
+              <div className="p-6 border-b border-slate-200/50">
+                <h3 className="text-lg font-semibold text-slate-900">Individual Responses</h3>
               </div>
               
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-slate-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                         ID
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                         Submitted
                       </th>
                       {form.mode === 'test' && (
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                           Score
                         </th>
                       )}
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                         IP Address
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="divide-y divide-slate-200/50">
                     {filteredResponses.map((response) => (
-                      <tr key={response.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <motion.tr 
+                        key={response.id} 
+                        className="hover:bg-slate-50/50"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
                           #{response.id}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
                           {format(new Date(response.submittedAt), 'MMM d, yyyy HH:mm')}
                         </td>
                         {form.mode === 'test' && (
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
                             {response.score && response.maxScore ? (
                               <div className="flex items-center">
                                 <span className="font-medium">
                                   {Math.round((response.score / response.maxScore) * 100)}%
                                 </span>
-                                <span className="ml-2 text-xs text-gray-400">
+                                <span className="ml-2 text-xs text-slate-400">
                                   ({response.score}/{response.maxScore})
                                 </span>
                               </div>
@@ -484,108 +663,236 @@ const FormResponses = () => {
                             )}
                           </td>
                         )}
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
                           {response.ipAddress}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <button
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 flex space-x-3">
+                          <motion.button
                             onClick={() => setSelectedResponse(response)}
-                            className="text-blue-600 hover:text-blue-700 font-medium"
+                            className="text-blue-600 hover:text-blue-700 font-medium flex items-center"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
                           >
-                            View Details
-                          </button>
+                            <Eye className="w-4 h-4 mr-1" />
+                            View
+                          </motion.button>
+                          <motion.button
+                            onClick={() => openDeleteModal('single', response.id)}
+                            className="text-red-600 hover:text-red-700 font-medium flex items-center"
+                            disabled={deleting}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Delete
+                          </motion.button>
                         </td>
-                      </tr>
+                      </motion.tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         )}
 
         {/* Response Detail Modal */}
-        {selectedResponse && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl max-w-4xl w-full max-h-96 overflow-y-auto">
-              <div className="p-6 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Response #{selectedResponse.id}
-                  </h3>
-                  <button
-                    onClick={() => setSelectedResponse(null)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    ✕
-                  </button>
+        <AnimatePresence>
+          {selectedResponse && (
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <motion.div 
+                className="bg-gradient-to-br from-white to-slate-50 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200/50"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="p-6 border-b border-slate-200/50 flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-sm">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900">
+                      Response #{selectedResponse.id}
+                    </h3>
+                    <p className="text-sm text-slate-500">
+                      Submitted on {format(new Date(selectedResponse.submittedAt), 'MMM d, yyyy HH:mm')}
+                    </p>
+                  </div>
+                  <div className="flex items-center">
+                    <motion.button
+                      onClick={() => openDeleteModal('single', selectedResponse.id)}
+                      disabled={deleting}
+                      className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white font-medium rounded-lg hover:from-red-600 hover:to-rose-700 transition-all shadow-md mr-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      {deleting ? (
+                        <Loader className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4 mr-2" />
+                      )}
+                      Delete
+                    </motion.button>
+                    <button
+                      onClick={() => setSelectedResponse(null)}
+                      className="text-slate-400 hover:text-slate-600 text-xl p-1 rounded-full hover:bg-slate-100"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-500">
-                  Submitted on {format(new Date(selectedResponse.submittedAt), 'MMM d, yyyy HH:mm')}
-                </p>
-              </div>
-              
-              <div className="p-6 space-y-6">
-                {form.questions.map((question, index) => {
-                  const answer = selectedResponse.answers[index];
-                  return (
-                    <div key={index} className="border-b border-gray-200 pb-4 last:border-b-0">
-                      <h4 className="font-medium text-gray-900 mb-2">
-                        {index + 1}. {question.title}
-                      </h4>
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        {answer ? (
-                          <>
-                            {question.type === 'categorize' && answer.categories && (
-                              <div>
-                                {question.categories.map((category: any, catIndex: number) => (
-                                  <div key={catIndex} className="mb-2">
-                                    <span className="font-medium text-sm text-gray-700">
-                                      {category.name}:
-                                    </span>
-                                    <span className="ml-2 text-sm text-gray-600">
-                                      {answer.categories[catIndex]?.join(', ') || 'No items'}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            
-                            {question.type === 'cloze' && answer.blanks && (
-                              <div className="space-y-1">
-                                {answer.blanks.map((blank: string, blankIndex: number) => (
-                                  <div key={blankIndex} className="text-sm">
-                                    <span className="font-medium text-gray-700">Blank {blankIndex + 1}:</span>
-                                    <span className="ml-2 text-gray-600">{blank || '(empty)'}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            
-                            {question.type === 'comprehension' && answer.followUpAnswers && (
-                              <div className="space-y-1">
-                                {answer.followUpAnswers.map((followUpAnswer: string, followUpIndex: number) => (
-                                  <div key={followUpIndex} className="text-sm">
-                                    <span className="font-medium text-gray-700">
-                                      Question {followUpIndex + 1}:
-                                    </span>
-                                    <span className="ml-2 text-gray-600">{followUpAnswer || '(no answer)'}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <p className="text-sm text-gray-500 italic">No answer provided</p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                
+                <div className="p-6 space-y-6">
+                  {form.questions.map((question, index) => {
+                    const answer = selectedResponse.answers[index];
+                    return (
+                      <motion.div 
+                        key={index} 
+                        className="border-b border-slate-200/50 pb-5 last:border-b-0"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
+                        <h4 className="font-medium text-slate-900 mb-3 flex items-center">
+                          <span className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-3 text-xs">
+                            {index + 1}
+                          </span>
+                          {question.title}
+                        </h4>
+                        <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-200/50">
+                          {answer ? (
+                            <>
+                              {question.type === 'categorize' && answer.categories && (
+                                <div className="space-y-3">
+                                  {question.categories.map((category: any, catIndex: number) => (
+                                    <div key={catIndex} className="flex items-start">
+                                      <div className="font-medium text-sm text-slate-700 min-w-[120px] flex items-center">
+                                        <span className="bg-slate-200/50 px-2 py-1 rounded-lg mr-2">
+                                          {category.name}:
+                                        </span>
+                                      </div>
+                                      <div className="flex-1 flex flex-wrap gap-2">
+                                        {answer.categories[catIndex]?.map((item: string, itemIndex: number) => (
+                                          <span 
+                                            key={itemIndex} 
+                                            className="bg-gradient-to-r from-blue-100 to-cyan-100 text-slate-800 px-3 py-1.5 rounded-lg text-sm"
+                                          >
+                                            {item}
+                                          </span>
+                                        ))}
+                                        {(!answer.categories[catIndex] || answer.categories[catIndex].length === 0) && (
+                                          <span className="text-slate-400 italic text-sm">No items</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              
+                              {question.type === 'cloze' && answer.blanks && (
+                                <div className="space-y-3">
+                                  {answer.blanks.map((blank: string, blankIndex: number) => (
+                                    <div key={blankIndex} className="flex items-center">
+                                      <span className="font-medium text-sm text-slate-700 min-w-[100px]">
+                                        Blank {blankIndex + 1}:
+                                      </span>
+                                      <span className="bg-gradient-to-r from-green-100 to-emerald-100 text-slate-800 px-3 py-1.5 rounded-lg text-sm">
+                                        {blank || '(empty)'}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              
+                              {question.type === 'comprehension' && answer.followUpAnswers && (
+                                <div className="space-y-4">
+                                  {answer.followUpAnswers.map((followUpAnswer: string, followUpIndex: number) => (
+                                    <div key={followUpIndex} className="bg-white p-4 rounded-xl border border-slate-200/50">
+                                      <div className="font-medium text-slate-800 mb-2 flex items-center">
+                                        <span className="bg-slate-200/50 px-2 py-0.5 rounded mr-2 text-xs">
+                                          Q{followUpIndex + 1}
+                                        </span>
+                                        {question.followUpQuestions[followUpIndex]?.question}
+                                      </div>
+                                      <div className="ml-5 mt-2">
+                                        <span className="text-slate-600 bg-slate-100/50 px-3 py-1.5 rounded-lg text-sm">
+                                          {followUpAnswer || '(no answer)'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-sm text-slate-500 italic">No answer provided</p>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </motion.div>
             </div>
-          </div>
-        )}
+          )}
+        </AnimatePresence>
+
+        {/* Delete Confirmation Modal */}
+        <AnimatePresence>
+          {showDeleteModal && (
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <motion.div 
+                className="bg-gradient-to-br from-white to-slate-50 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200/50"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="text-center">
+                  <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                    <AlertCircle className="h-10 w-10 text-red-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">
+                    Confirm Deletion
+                  </h3>
+                  <p className="text-slate-600 mb-6">
+                    {deleteType === 'all' 
+                      ? 'Are you sure you want to delete ALL responses? This action cannot be undone.' 
+                      : 'Are you sure you want to delete this response? This action cannot be undone.'}
+                  </p>
+                  
+                  <div className="flex justify-center space-x-4">
+                    <motion.button
+                      onClick={closeDeleteModal}
+                      className="px-5 py-2.5 text-slate-700 hover:bg-slate-100 rounded-xl font-medium transition-all border border-slate-300"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      Cancel
+                    </motion.button>
+                    <motion.button
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      className="px-5 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-xl font-medium hover:from-red-600 hover:to-rose-700 transition-all shadow-md disabled:opacity-70 disabled:cursor-not-allowed flex items-center"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      {deleting ? (
+                        <>
+                          <Loader className="w-4 h-4 mr-2 animate-spin" />
+                          Deleting...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </>
+                      )}
+                    </motion.button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
