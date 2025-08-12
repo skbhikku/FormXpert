@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
@@ -23,8 +22,9 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
-  verticalListSortingStrategy,
+  verticalListSortingStrategy
 } from '@dnd-kit/sortable';
+
 import { CSS } from '@dnd-kit/utilities';
 import { 
   CheckCircle, 
@@ -127,6 +127,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ id, value, color, onRemov
     setNodeRef,
     transform,
     transition,
+  
   } = useSortable({ id });
 
   const style: React.CSSProperties = {
@@ -292,6 +293,7 @@ const PublicForm: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [result, setResult] = useState<SubmissionResult | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeItem, setActiveItem] = useState<ItemObj | null>(null);
   
@@ -572,7 +574,9 @@ const PublicForm: React.FC = () => {
   const submitForm = async () => {
     if (!form) return;
 
+    
     const isValid = form.questions.every((question, index) => {
+
       switch (question.type) {
         case 'categorize':
           return Object.values(categorizedItems[index] || {}).some(arr => arr.length > 0);
@@ -597,6 +601,7 @@ const PublicForm: React.FC = () => {
     setSubmitting(true);
 
     try {
+
       const finalAnswers: Record<number, Answer> = {};
       form.questions.forEach((question, index) => {
         if (question.type === 'categorize') {
