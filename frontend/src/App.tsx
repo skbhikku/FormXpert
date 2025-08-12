@@ -60,7 +60,7 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              <Route path="/forms/:id" element={<PublicForm />} />
+              <Route path="/forms/:id/public" element={<PublicForm />} />
               
               <Route path="/dashboard" element={
                 <ProtectedRoute>
