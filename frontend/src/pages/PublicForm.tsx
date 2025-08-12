@@ -485,7 +485,6 @@ const PublicForm: React.FC = () => {
     }
 
     const activeId = active.id as string;
-    const overId = over.id as string;
 
     const questionIndexMatch = activeId.match(/q(\d+)-/);
     if (!questionIndexMatch) return;
