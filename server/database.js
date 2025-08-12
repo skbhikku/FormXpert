@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { v4 as uuidv4 } from 'uuid';
 
 export const connectDB = async () => {
   try {
@@ -52,86 +53,45 @@ const userSchema = new mongoose.Schema({
 });
 
 // Form Schema
+// Form Schema
 const formSchema = new mongoose.Schema({
-  _id: {
-    type: String,
-    required: true
-  },
-  userId: {
+  _id: { type: String, default: uuidv4 },
+   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  title: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  description: {
-    type: String,
-    trim: true
-  },
-  headerImage: {
-    type: String
-  },
-  mode: {
-    type: String,
-    enum: ['survey', 'test'],
-    default: 'survey'
-  },
+  title: { type: String, required: true },
+  description: String,
+  headerImage: String,
+  mode: { type: String, enum: ['survey', 'test'], default: 'survey' },
   questions: [{
     id: String,
-    type: {
-      type: String,
-      enum: ['categorize', 'cloze', 'comprehension'],
-      required: true
-    },
-    title: {
-      type: String,
-      required: true
-    },
+    type: { type: String, enum: ['categorize', 'cloze', 'comprehension'], required: true },
+    title: { type: String, required: true },
     description: String,
     image: String,
-    points: {
-      type: Number,
-      default: 1,
-      min: 1
-    },
-    // Categorize specific
-    items: [String],
-    categories: [{
-      name: String,
-      items: [String]
-    }],
-    correctAnswer: mongoose.Schema.Types.Mixed,
-    // Cloze specific
+    points: { type: Number, default: 1 },
+    items: [{ id: String, text: String, categoryId: String }],
+    categories: [{ id: String, name: String, color: String }],
     text: String,
-    blanks: Number,
-    // Comprehension specific
+    blanks: [{ id: String, answer: String, hint: String }],
     passage: String,
     followUpQuestions: [{
+      id: String,
       question: String,
-      options: [String],
+      options: [{ id: String, text: String }],
       correctAnswer: String
     }]
   }],
   settings: {
-    allowAnonymous: {
-      type: Boolean,
-      default: true
+    allowAnonymous: { type: Boolean, default: true },
+    showResults: { type: Boolean, default: true }
     },
-    showResults: {
-      type: Boolean,
-      default: true
-    },
-    timeLimit: Number
-  },
-  isActive: {
-    type: Boolean,
-    default: true
-  }
-}, {
-  timestamps: true
+  isActive: { type: Boolean, default: true },
+  shareId: { type: String, default: uuidv4, unique: true },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
 });
 
 // Response Schema
