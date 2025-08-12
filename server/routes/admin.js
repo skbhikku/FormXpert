@@ -158,7 +158,13 @@ router.get('/forms', async (req, res) => {
           mode: 1,
           isActive: 1,
           createdAt: 1,
-          creatorEmail: { $arrayElemAt: ['$creator.email', 0] },
+          shareId: 1, // Include shareId
+          creatorEmail: { 
+            $ifNull: [
+              { $arrayElemAt: ['$creator.email', 0] }, 
+              'deleted@user.com' // Handle missing creator
+            ] 
+          },
           responseCount: { $size: '$responses' }
         }
       },
@@ -174,7 +180,8 @@ router.get('/forms', async (req, res) => {
       isActive: form.isActive,
       createdAt: form.createdAt,
       creatorEmail: form.creatorEmail,
-      responseCount: form.responseCount
+      responseCount: form.responseCount,
+      shareId: form.shareId // Include shareId
     }));
     
     res.json(formattedForms);
